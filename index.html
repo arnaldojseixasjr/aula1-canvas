@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desafio: Arquiteto por 1 Dia (Architecture Canvas)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .drag-ghost { opacity: 0.4; }
+    .drop-active { border-color: #3b82f6; background-color: rgba(59, 130, 246, 0.05); }
+    .card-item { transition: all 0.2s ease-in-out; touch-action: manipulation; }
+    .card-item:hover { transform: translateY(-2px); }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+
+  <!-- Header Header -->
+  <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="bg-blue-600 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-white">Nível 2 - Aula 1</span>
+          <span class="text-slate-400 text-sm">Prática Guiada</span>
+        </div>
+        <h1 class="text-xl sm:text-2xl font-extrabold text-white mt-1 flex items-center gap-2">
+          <i class="fa-solid fa-sitemap text-blue-400"></i> Desafio: Arquiteto por 1 Dia
+        </h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="reset-btn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold rounded-lg border border-slate-700 transition flex items-center gap-2">
+          <i class="fa-solid fa-rotate-right"></i> Reiniciar
+        </button>
+        <button id="validate-btn" class="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-blue-500/25 transition flex items-center gap-2">
+          <i class="fa-solid fa-square-check"></i> Validar Arquitetura
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex-1 flex flex-col gap-6 w-full">
+
+    <!-- Scenario Context Banner -->
+    <div class="bg-gradient-to-r from-slate-800 to-slate-800/60 rounded-xl p-5 border border-slate-700/80 shadow-md">
+      <div class="flex items-start gap-4">
+        <div class="p-3 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/20 shrink-0 hidden sm:block">
+          <i class="fa-solid fa-paw text-2xl"></i>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span>Cenário: Sistema de Pet Uber & PetShop ("PetGo")</span>
+          </h2>
+          <p class="text-sm text-slate-300 mt-1 leading-relaxed">
+            Você é o Arquiteto de Software responsável por organizar a estrutura de módulos da aplicação <strong>PetGo</strong>. 
+            Arraste (ou clique) nos <strong>10 elementos do sistema</strong> listados na caixa de pendências e posicione-os na camada correta do <strong>Architecture Canvas</strong> para evitar dependências circulares e o famoso "código macarrão".
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Validation Result Alert (Hidden by default) -->
+    <div id="result-alert" class="hidden rounded-xl p-5 border transition-all duration-300">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-start gap-3">
+          <div id="result-icon" class="text-2xl mt-0.5"></div>
+          <div>
+            <h3 id="result-title" class="text-lg font-bold"></h3>
+            <p id="result-message" class="text-sm mt-1"></p>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="text-2xl font-black" id="result-score">0/10</div>
+          <div class="text-xs text-slate-400">Pontuação</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout Grid: Pending Pool + Canvas Layers -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+      <!-- Left Column: Pending Pool (Cards to assign) -->
+      <div class="lg:col-span-1 bg-slate-950/60 rounded-xl p-4 border border-slate-800 flex flex-col">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
+          <h3 class="font-bold text-slate-200 text-sm flex items-center gap-2">
+            <i class="fa-solid fa-boxes-stacked text-amber-400"></i> Elementos Pendentes
+          </h3>
+          <span id="pending-count" class="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold px-2 py-0.5 rounded-full">10</span>
+        </div>
+        <p class="text-xs text-slate-400 mb-3">Arraste para os blocos ao lado ou clique no card para selecionar o destino.</p>
+        
+        <!-- Cards List Container -->
+        <div id="pool-container" class="space-y-2.5 min-h-[300px] flex-1 border-2 border-dashed border-slate-800 rounded-lg p-2 transition-colors">
+          <!-- Cards injected via JS -->
+        </div>
+      </div>
+
+      <!-- Right Column: Canvas Layers -->
+      <div class="lg:col-span-3 space-y-4">
+
+        <!-- 1. END-USER LAYER -->
+        <div class="bg-slate-950/40 rounded-xl border border-sky-500/30 overflow-hidden shadow-lg">
+          <div class="bg-sky-500/10 border-b border-sky-500/20 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-3 h-3 rounded-full bg-sky-400 shadow-sm shadow-sky-400/50"></span>
+              <h3 class="font-bold text-sky-200 text-sm tracking-wide uppercase">1. END-USER LAYER (Interface do Usuário)</h3>
+            </div>
+            <span class="text-xs text-sky-400/80 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">Telas & Apps Mobile</span>
+          </div>
+          <div id="end-user-layer" data-layer="END_USER" class="layer-dropzone p-3 min-h-[120px] grid grid-cols-1 sm:grid-cols-2 gap-2.5 transition-colors">
+            <!-- Dropzone Content -->
+          </div>
+        </div>
+
+        <!-- 2. CORE LAYER -->
+        <div class="bg-slate-950/40 rounded-xl border border-indigo-500/30 overflow-hidden shadow-lg">
+          <div class="bg-indigo-500/10 border-b border-indigo-500/20 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-3 h-3 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400/50"></span>
+              <h3 class="font-bold text-indigo-200 text-sm tracking-wide uppercase">2. CORE LAYER (Regras de Negócio & Serviços)</h3>
+            </div>
+            <span class="text-xs text-indigo-400/80 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">Banco, CRUDs & APIs</span>
+          </div>
+          <div id="core-layer" data-layer="CORE" class="layer-dropzone p-3 min-h-[140px] grid grid-cols-1 sm:grid-cols-2 gap-2.5 transition-colors">
+            <!-- Dropzone Content -->
+          </div>
+        </div>
+
+        <!-- 3. FOUNDATION LAYER -->
+        <div class="bg-slate-950/40 rounded-xl border border-amber-500/30 overflow-hidden shadow-lg">
+          <div class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-3 h-3 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
+              <h3 class="font-bold text-amber-200 text-sm tracking-wide uppercase">3. FOUNDATION LAYER (Infraestrutura & Base)</h3>
+            </div>
+            <span class="text-xs text-amber-400/80 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Themes, JS & Utilities</span>
+          </div>
+          <div id="foundation-layer" data-layer="FOUNDATION" class="layer-dropzone p-3 min-h-[120px] grid grid-cols-1 sm:grid-cols-2 gap-2.5 transition-colors">
+            <!-- Dropzone Content -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Selection Modal for Click-to-Move (Mobile & Accessibility fallback) -->
+  <div id="assign-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-5 shadow-2xl">
+      <h3 class="text-lg font-bold text-white mb-1" id="modal-card-title">Mover Elemento</h3>
+      <p class="text-xs text-slate-400 mb-4">Escolha em qual camada do Canvas este item deve morar:</p>
+      
+      <div class="space-y-2.5">
+        <button data-target="END_USER" class="modal-choice-btn w-full p-3 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-lg text-left transition flex items-center justify-between">
+          <div>
+            <div class="text-sm font-bold text-sky-200">1. End-User Layer</div>
+            <div class="text-xs text-sky-400/70">Telas, Portais e Frontends</div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-sky-400"></i>
+        </button>
+
+        <button data-target="CORE" class="modal-choice-btn w-full p-3 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-lg text-left transition flex items-center justify-between">
+          <div>
+            <div class="text-sm font-bold text-indigo-200">2. Core Layer</div>
+            <div class="text-xs text-indigo-400/70">Banco de Dados, Regras & APIs</div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-indigo-400"></i>
+        </button>
+
+        <button data-target="FOUNDATION" class="modal-choice-btn w-full p-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg text-left transition flex items-center justify-between">
+          <div>
+            <div class="text-sm font-bold text-amber-200">3. Foundation Layer</div>
+            <div class="text-xs text-amber-400/70">Style Guide, Scripts & Logs</div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-amber-400"></i>
+        </button>
+
+        <button data-target="POOL" class="modal-choice-btn w-full p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg text-center transition">
+          Retornar para Pendentes
+        </button>
+      </div>
+
+      <button id="close-modal-btn" class="mt-4 w-full py-2 text-xs text-slate-400 hover:text-white">Cancelar</button>
+    </div>
+  </div>
+
+  <script>
+    // System Architecture Items Data Definition
+    const ARCHITECTURE_ITEMS = [
+      {
+        id: "item-1",
+        name: "Tela_Agendamento_Mobile",
+        icon: "fa-mobile-screen-button",
+        correctLayer: "END_USER",
+        explanation: "É uma tela final de interatividade do cliente (Mobile). Fica na camada End-User e serve apenas para coletar e exibir informações sem armazenar lógica pesada."
+      },
+      {
+        id: "item-2",
+        name: "CSS_Tema_Cores_Empresa",
+        icon: "fa-palette",
+        correctLayer: "FOUNDATION",
+        explanation: "Trata-se do Style Guide / Design System da empresa. Como define visual e temas genéricos para todas as aplicações, pertence à camada Foundation."
+      },
+      {
+        id: "item-3",
+        name: "TB_Pet",
+        icon: "fa-database",
+        correctLayer: "CORE",
+        explanation: "É a entidade (tabela do banco de dados) que representa os animais cadastrados. Dados e modelos de domínio pertencem obrigatoriamente à camada Core."
+      },
+      {
+        id: "item-4",
+        name: "Action_CalcularValorCorrida",
+        icon: "fa-calculator",
+        correctLayer: "CORE",
+        explanation: "É uma regra de negócio pura (cálculo de preço do frete/uber do pet). Deve ficar isolada no Core para ser reaproveitada em qualquer tela ou app."
+      },
+      {
+        id: "item-5",
+        name: "Script_JS_MascaraTelefone",
+        icon: "fa-code",
+        correctLayer: "FOUNDATION",
+        explanation: "Trata-se de uma função utilitária (Library JS) agnóstica de negócio. Serve para qualquer sistema e por isso mora na camada Foundation."
+      },
+      {
+        id: "item-6",
+        name: "Tela_Dashboard_Admin",
+        icon: "fa-chart-line",
+        correctLayer: "END_USER",
+        explanation: "É uma interface Web para os gestores do PetShop verem gráficos. Toda interface do usuário pertence à camada End-User."
+      },
+      {
+        id: "item-7",
+        name: "API_Integracao_Pagamento_Stripe",
+        icon: "fa-credit-card",
+        correctLayer: "CORE",
+        explanation: "É uma integração com serviço de gateway de pagamento externo ligada à regra financeira do negócio. Pertence à subcamada de API do Core."
+      },
+      {
+        id: "item-8",
+        name: "Log_Auditoria_Sistema",
+        icon: "fa-receipt",
+        correctLayer: "FOUNDATION",
+        explanation: "É um serviço de infraestrutura (Foundation Service) responsável por guardar logs de uso da plataforma. É neutro e atende a toda a infraestrutura."
+      },
+      {
+        id: "item-9",
+        name: "Action_ValidarCPF",
+        icon: "fa-id-card",
+        correctLayer: "FOUNDATION",
+        explanation: "É uma biblioteca de validação genérica de documentos. Como não depende das regras do negócio de PetShop, encaixa-se como utilitário da Foundation."
+      },
+      {
+        id: "item-10",
+        name: "Core_Servico_Notificacao",
+        icon: "fa-paper-plane",
+        correctLayer: "CORE",
+        explanation: "Lógica que dispara e-mails/push avisando o status do banho do pet. Encapsula um fluxo de serviço de negócio e pertence à camada Core."
+      }
+    ];
+
+    // State Tracking
+    let userAssignments = {}; // { itemId: 'END_USER' | 'CORE' | 'FOUNDATION' | 'POOL' }
+    let activeItemForModal = null;
+    let isValidated = false;
+
+    // DOM Elements
+    const poolContainer = document.getElementById('pool-container');
+    const layerDropzones = document.querySelectorAll('.layer-dropzone');
+    const validateBtn = document.getElementById('validate-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const pendingCount = document.getElementById('pending-count');
+    const assignModal = document.getElementById('assign-modal');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const modalChoices = document.querySelectorAll('.modal-choice-btn');
+    const modalCardTitle = document.getElementById('modal-card-title');
+    const resultAlert = document.getElementById('result-alert');
+
+    // Initialize App
+    function init() {
+      ARCHITECTURE_ITEMS.forEach(item => {
+        userAssignments[item.id] = 'POOL';
+      });
+      render();
+      setupEventListeners();
+    }
+
+    // Render All Cards into their assigned spots
+    function render() {
+      // Clear containers
+      poolContainer.innerHTML = '';
+      layerDropzones.forEach(zone => zone.innerHTML = '');
+
+      let pendingNum = 0;
+
+      ARCHITECTURE_ITEMS.forEach(item => {
+        const assignedZone = userAssignments[item.id];
+        const cardElem = createCardElement(item, assignedZone);
+
+        if (assignedZone === 'POOL') {
+          poolContainer.appendChild(cardElem);
+          pendingNum++;
+        } else {
+          const targetZone = document.querySelector(`.layer-dropzone[data-layer="${assignedZone}"]`);
+          if (targetZone) targetZone.appendChild(cardElem);
+        }
+      });
+
+      pendingCount.textContent = pendingNum;
+
+      if (pendingNum === 0 && poolContainer.children.length === 0) {
+        poolContainer.innerHTML = `<div class="text-xs text-slate-500 text-center py-6 flex flex-col items-center gap-1"><i class="fa-solid fa-circle-check text-green-500 text-lg mb-1"></i>Todos os elementos foram alocados! Clique em <strong>Validar Arquitetura</strong>.</div>`;
+      }
+    }
+
+    // Create Card HTML Element
+    function createCardElement(item, currentZone) {
+      const card = document.createElement('div');
+      card.id = item.id;
+      card.draggable = true;
+      card.className = `card-item bg-slate-800 hover:bg-slate-750 border border-slate-700/80 rounded-lg p-2.5 cursor-grab active:cursor-grabbing select-none shadow-sm text-xs font-mono flex flex-col gap-1.5`;
+
+      // Status Indicator if validated
+      let validationBadge = '';
+      if (isValidated && currentZone !== 'POOL') {
+        const isCorrect = item.correctLayer === currentZone;
+        if (isCorrect) {
+          card.classList.add('border-emerald-500', 'bg-emerald-950/20');
+          validationBadge = `<span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1 font-sans"><i class="fa-solid fa-check"></i> Correto</span>`;
+        } else {
+          card.classList.add('border-rose-500', 'bg-rose-950/20');
+          validationBadge = `<span class="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/30 flex items-center gap-1 font-sans"><i class="fa-solid fa-xmark"></i> Incorreto</span>`;
+        }
+      }
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 truncate font-bold text-slate-200">
+            <i class="fa-solid ${item.icon} text-slate-400 text-sm"></i>
+            <span class="truncate">${item.name}</span>
+          </div>
+          ${validationBadge}
+        </div>
+        ${isValidated && currentZone !== 'POOL' ? `<div class="text-[11px] font-sans text-slate-300 mt-1 pt-1 border-t border-slate-700/50 leading-relaxed">${item.explanation}</div>` : ''}
+      `;
+
+      // Drag Events
+      card.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', item.id);
+        card.classList.add('drag-ghost');
+      });
+
+      card.addEventListener('dragend', () => {
+        card.classList.remove('drag-ghost');
+      });
+
+      // Click to open selection modal
+      card.addEventListener('click', () => {
+        openModalForItem(item.id);
+      });
+
+      return card;
+    }
+
+    // Setup Drag and Drop Listeners
+    function setupEventListeners() {
+      const allZones = [poolContainer, ...layerDropzones];
+
+      allZones.forEach(zone => {
+        zone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          zone.classList.add('drop-active');
+        });
+
+        zone.addEventListener('dragleave', () => {
+          zone.classList.remove('drop-active');
+        });
+
+        zone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          zone.classList.remove('drop-active');
+          const itemId = e.dataTransfer.getData('text/plain');
+          if (itemId) {
+            const targetZone = zone.dataset.layer || 'POOL';
+            userAssignments[itemId] = targetZone;
+            isValidated = false; // Reset validation on edit
+            hideResultAlert();
+            render();
+          }
+        });
+      });
+
+      // Actions
+      validateBtn.addEventListener('click', validateArchitecture);
+      resetBtn.addEventListener('click', resetAll);
+
+      // Modal Handlers
+      closeModalBtn.addEventListener('click', closeModal);
+      modalChoices.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = btn.dataset.target;
+          if (activeItemForModal) {
+            userAssignments[activeItemForModal] = target;
+            isValidated = false;
+            hideResultAlert();
+            render();
+            closeModal();
+          }
+        });
+      });
+    }
+
+    // Modal Helpers
+    function openModalForItem(itemId) {
+      activeItemForModal = itemId;
+      const item = ARCHITECTURE_ITEMS.find(i => i.id === itemId);
+      modalCardTitle.textContent = item.name;
+      assignModal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      assignModal.classList.add('hidden');
+      activeItemForModal = null;
+    }
+
+    // Validation Logic
+    function validateArchitecture() {
+      let score = 0;
+      let unassignedCount = 0;
+
+      ARCHITECTURE_ITEMS.forEach(item => {
+        const assigned = userAssignments[item.id];
+        if (assigned === 'POOL') {
+          unassignedCount++;
+        } else if (assigned === item.correctLayer) {
+          score++;
+        }
+      });
+
+      isValidated = true;
+      render();
+
+      // Display Feedback Alert
+      resultAlert.classList.remove('hidden', 'bg-emerald-950/40', 'border-emerald-500/50', 'bg-rose-950/40', 'border-rose-500/50', 'bg-amber-950/40', 'border-amber-500/50');
+      
+      const scoreElem = document.getElementById('result-score');
+      const titleElem = document.getElementById('result-title');
+      const messageElem = document.getElementById('result-message');
+      const iconElem = document.getElementById('result-icon');
+
+      scoreElem.textContent = `${score}/10`;
+
+      if (unassignedCount > 0) {
+        resultAlert.classList.add('bg-amber-950/40', 'border-amber-500/50', 'text-amber-200');
+        iconElem.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400"></i>`;
+        titleElem.textContent = "Atenção: Existem itens pendentes!";
+        messageElem.textContent = `Você alocou apenas ${10 - unassignedCount} de 10 elementos. Posicione todos os itens antes de concluir a arquitetura final.`;
+      } else if (score === 10) {
+        resultAlert.classList.add('bg-emerald-950/40', 'border-emerald-500/50', 'text-emerald-200');
+        iconElem.innerHTML = `<i class="fa-solid fa-award text-emerald-400"></i>`;
+        titleElem.textContent = "Excelente! Arquitetura 100% Aprovada!";
+        messageElem.textContent = "Parabéns! Todos os 10 componentes foram alocados em suas respectivas camadas respeitando o Architecture Canvas e as Regras de Dependência.";
+      } else if (score >= 7) {
+        resultAlert.classList.add('bg-emerald-950/40', 'border-emerald-500/50', 'text-emerald-200');
+        iconElem.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i>`;
+        titleElem.textContent = "Bom trabalho! Quase lá!";
+        messageElem.textContent = `Você acertou ${score} de 10 posições. Verifique os cartões destacados em vermelho para entender os ajustes necessários de arquitetura.`;
+      } else {
+        resultAlert.classList.add('bg-rose-950/40', 'border-rose-500/50', 'text-rose-200');
+        iconElem.innerHTML = `<i class="fa-solid fa-bug text-rose-400"></i>`;
+        titleElem.textContent = "Alerta de Código Macarrão!";
+        messageElem.textContent = `Você obteve ${score} de 10 acertos. Revise as justificativas em cada cartão em vermelho para corrigir as dependências do sistema.`;
+      }
+
+      resultAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideResultAlert() {
+      resultAlert.classList.add('hidden');
+    }
+
+    function resetAll() {
+      ARCHITECTURE_ITEMS.forEach(item => {
+        userAssignments[item.id] = 'POOL';
+      });
+      isValidated = false;
+      hideResultAlert();
+      render();
+    }
+
+    // Start App
+    init();
+  </script>
+</body>
+</html>
